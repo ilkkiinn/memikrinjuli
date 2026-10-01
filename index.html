@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Meme Gallery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="effects" id="effects" aria-hidden="true"></div>
+  <main class="gallery" id="gallery" aria-label="Meme gallery"></main>
+
+
+  <dialog class="lightbox" id="lightbox">
+    <button class="close" aria-label="Close">×</button>
+    <button class="nav prev" aria-label="Previous">‹</button>
+    <figure><img id="lightboxImage" alt=""></figure>
+    <button class="nav next" aria-label="Next">›</button>
+  </dialog>
+
+<script>
+const memes = [
+  ['assets/meme-1.jpg','the lore begins'],
+  ['assets/meme-2.jpg','faith in the future'],
+  ['assets/meme-3.jpg','listen to her'],
+  ['assets/meme-4.jpg','gift incident'],
+  ['assets/meme-5.jpg','playlist scholarship'],
+  ['assets/meme-6.jpg','listen and learn'],
+  ['assets/meme-7.jpg','ranking everyone on earth']
+];
+const gallery = document.querySelector('#gallery');
+memes.forEach(([src, caption], i) => {
+  const a = document.createElement('a'); a.href = src; a.className = 'gallery-link'; a.dataset.index = i;
+  a.innerHTML = `<figure class="gallery-image"><img src="${src}" alt="${caption}" loading="lazy"></figure>`;
+  gallery.appendChild(a);
+});
+const box = document.querySelector('#lightbox'), image = document.querySelector('#lightboxImage');
+let current = 0;
+function show(i){ current=(i+memes.length)%memes.length; image.src=memes[current][0]; image.alt=memes[current][1]; if(!box.open) box.showModal(); }
+gallery.addEventListener('click', e=>{ const a=e.target.closest('a'); if(!a)return; e.preventDefault(); show(+a.dataset.index); });
+document.querySelector('.close').onclick=()=>box.close();
+document.querySelector('.prev').onclick=()=>show(current-1);
+document.querySelector('.next').onclick=()=>show(current+1);
+box.addEventListener('click',e=>{ if(e.target===box) box.close(); });
+document.addEventListener('keydown',e=>{ if(!box.open)return; if(e.key==='ArrowLeft')show(current-1); if(e.key==='ArrowRight')show(current+1); });
+
+// ambient heart field — space-aware, with short-term memory so it wanders.
+const effects = document.querySelector('#effects');
+const heat = new Map();
+const CELL = 140;
+const colors = ['#41576b','#758c27','#704252','#267b7b','#d05f4e','#c99b36'];
+const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+const rand = (a,b)=>a+Math.random()*(b-a);
+function keyFor(x,y){ return `${Math.floor(x/CELL)},${Math.floor(y/CELL)}`; }
+function nearestMemeDistance(x,y){
+  let nearest=Infinity;
+  document.querySelectorAll('.gallery-image').forEach(el=>{
+    const r=el.getBoundingClientRect();
+    const dx=Math.max(r.left-x,0,x-r.right), dy=Math.max(r.top-y,0,y-r.bottom);
+    nearest=Math.min(nearest,Math.hypot(dx,dy));
+  });
+  return nearest;
+}
+function addHeat(x,y,strength=1){
+  const cx=Math.floor(x/CELL), cy=Math.floor(y/CELL);
+  for(let dx=-2;dx<=2;dx++) for(let dy=-2;dy<=2;dy++){
+    const d=Math.hypot(dx,dy); if(d>2) continue;
+    const k=`${cx+dx},${cy+dy}`;
+    heat.set(k,clamp((heat.get(k)||0)+strength*(1-d/2.5),0,1));
+  }
+}
+setInterval(()=>{ for(const [k,v] of heat){ const n=v*.82; n<.025?heat.delete(k):heat.set(k,n); } },1200);
+function choosePoint(){
+  const c=[];
+  for(let i=0;i<14;i++){
+    const x=rand(30,innerWidth-30), y=rand(30,innerHeight-30), dist=nearestMemeDistance(x,y);
+    if(dist<32) continue;
+    const space=clamp(dist/300,0,1), h=heat.get(keyFor(x,y))||0;
+    c.push({x,y,space,score:space*.62+Math.random()*.25-h*.48});
+  }
+  c.sort((a,b)=>b.score-a.score);
+  const pool=c.slice(0,Math.min(3,c.length));
+  return pool.length?pool[Math.floor(Math.random()*pool.length)]:null;
+}
+function makeBubble(x,y,{space=1}={}){
+  const b=document.createElement('div');
+  const size=rand(70+space*90,110+space*180);
+  const dur=rand(5200,8200)+(1-space)*1800;
+  b.className='bubble ambient';
+  b.style.left=x+'px'; b.style.top=y+'px'; b.style.setProperty('--size',size+'px');
+  b.style.setProperty('--dur',dur+'ms'); b.style.setProperty('--dx',rand(-22,22)+'px'); b.style.setProperty('--dy',rand(-30,8)+'px');
+  b.style.setProperty('--color',colors[Math.floor(Math.random()*colors.length)]);
+  b.style.setProperty('--opacity',String(rand(.18,.26)+space*rand(.18,.28)));
+  b.innerHTML='<span class="bubble-ring"></span><svg class="heart" viewBox="0 0 600 500"><path d="M300,150 C500,10 600,300 300,400 C0,300 100,10 300,150"/></svg>';
+  effects.appendChild(b); setTimeout(()=>b.remove(),dur+100);
+  addHeat(x,y,clamp(size/180,.35,1));
+}
+function ambient(){
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){ const p=choosePoint(); if(p) makeBubble(p.x,p.y,p); }
+  setTimeout(ambient,rand(500,1050));
+}
+setTimeout(ambient,180);
+
+</script>
+</body>
+</html>
