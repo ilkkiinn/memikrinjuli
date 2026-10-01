@@ -50,7 +50,7 @@ document.addEventListener('keydown',e=>{ if(!box.open)return; if(e.key==='ArrowL
 // ambient heart field — space-aware, with short-term memory so it wanders.
 const effects = document.querySelector('#effects');
 const heat = new Map();
-const CELL = 140;
+const CELL = 110;
 const colors = ['#41576b','#758c27','#704252','#267b7b','#d05f4e','#c99b36'];
 const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
 const rand = (a,b)=>a+Math.random()*(b-a);
@@ -75,10 +75,11 @@ function addHeat(x,y,strength=1){
 setInterval(()=>{ for(const [k,v] of heat){ const n=v*.82; n<.025?heat.delete(k):heat.set(k,n); } },1200);
 function choosePoint(){
   const c=[];
-  for(let i=0;i<14;i++){
+  for(let i=0;i<(innerWidth <= 850 ? 28 : 18);i++){
     const x=rand(30,innerWidth-30), y=rand(30,innerHeight-30), dist=nearestMemeDistance(x,y);
-    if(dist<32) continue;
-    const space=clamp(dist/300,0,1), h=heat.get(keyFor(x,y))||0;
+    const mobile = innerWidth <= 850;
+    if(dist < (mobile ? 10 : 28)) continue;
+    const space=clamp(dist/(mobile ? 150 : 280),0,1), h=heat.get(keyFor(x,y))||0;
     c.push({x,y,space,score:space*.62+Math.random()*.25-h*.48});
   }
   c.sort((a,b)=>b.score-a.score);
@@ -87,22 +88,25 @@ function choosePoint(){
 }
 function makeBubble(x,y,{space=1}={}){
   const b=document.createElement('div');
-  const size=rand(70+space*90,110+space*180);
-  const dur=rand(5200,8200)+(1-space)*1800;
+  const mobile = innerWidth <= 850;
+  const size = mobile ? rand(95+space*70,150+space*150) : rand(80+space*90,125+space*175);
+  const dur = mobile ? rand(4300,6500) : rand(5000,7600)+(1-space)*1500;
   b.className='bubble ambient';
   b.style.left=x+'px'; b.style.top=y+'px'; b.style.setProperty('--size',size+'px');
   b.style.setProperty('--dur',dur+'ms'); b.style.setProperty('--dx',rand(-22,22)+'px'); b.style.setProperty('--dy',rand(-30,8)+'px');
   b.style.setProperty('--color',colors[Math.floor(Math.random()*colors.length)]);
-  b.style.setProperty('--opacity',String(rand(.18,.26)+space*rand(.18,.28)));
+  b.style.setProperty('--opacity', String(mobile ? rand(.62,.88) : rand(.38,.58)+space*rand(.10,.18)));
   b.innerHTML='<span class="bubble-ring"></span><svg class="heart" viewBox="0 0 600 500"><path d="M300,150 C500,10 600,300 300,400 C0,300 100,10 300,150"/></svg>';
   effects.appendChild(b); setTimeout(()=>b.remove(),dur+100);
   addHeat(x,y,clamp(size/180,.35,1));
 }
 function ambient(){
   if(!matchMedia('(prefers-reduced-motion: reduce)').matches){ const p=choosePoint(); if(p) makeBubble(p.x,p.y,p); }
-  setTimeout(ambient,rand(500,1050));
+  setTimeout(ambient, innerWidth <= 850 ? rand(180,380) : rand(340,650));
 }
-setTimeout(ambient,180);
+// Seed several immediately so the background never starts looking empty.
+for(let i=0;i<(innerWidth <= 850 ? 7 : 5);i++) setTimeout(()=>{ const p=choosePoint(); if(p) makeBubble(p.x,p.y,p); }, i*110);
+setTimeout(ambient,220);
 
 </script>
 </body>
